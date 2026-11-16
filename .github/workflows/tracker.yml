@@ -1,0 +1,44 @@
+name: HW Tracker
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      umbral:
+        description: "Umbral de subida (usa -999 para probar)"
+        default: "50"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hw-tracker
+  cancel-in-progress: false
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Revisar stock
+        run: python tracker.py
+        env:
+          EMAIL_ORIGEN: ${{ secrets.EMAIL_ORIGEN }}
+          EMAIL_CONTRASENA: ${{ secrets.EMAIL_CONTRASENA }}
+          EMAIL_DESTINO: ${{ secrets.EMAIL_DESTINO }}
+          UMBRAL_SUBIDA: ${{ github.event.inputs.umbral || '50' }}
+
+      - name: Guardar registro de stock
+        run: |
+          git config user.name "hw-bot"
+          git config user.email "hw-bot@users.noreply.github.com"
+          git add -f hw_registro.json
+          git diff --cached --quiet || (git commit -m "registro de stock" && git push)
